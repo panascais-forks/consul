@@ -13,6 +13,26 @@ Consul on Kubernetes integrates with Prometheus and Grafana to provide metrics f
 
 ## Connect Service and Sidecar Metrics with Metrics Merging
 
+Prometheus annotations are used to scrape metrics. Prometheus annotations only support scraping from one endpoint on a Pod, so Consul on Kubernetes supports metrics merging so the service metrics and sidecar proxy metrics are merged into one endpoint. If there are no service metrics, it also supports just scraping the sidecar proxy metrics.
+
+The diagram below illustrates how the metrics integration works when merging is enabled:
+
+[![Metrics Merging Architecture](/img/metrics-arch.png)](/img/metrics-arch.png)
+
+Connect service metrics can be configured with the Helm values nested under [`connectInject.metrics`](/docs/k8s/helm#v-connectinject).
+
+Metrics can be enabled for all connect-injected Pods with the Helm value `defaultEnabled`, under `connectInject.metrics`. They can also be enabled on a per-Pod basis using the annotation `consul.hashicorp.com/enable-metrics`. Metrics merging can similarly be enabled using `defaultEnableMerging` or `consul.hashicorp.com/enable-metrics-merging`.
+
+The Prometheus annotations configure where to scrape the metrics from. As shown in the diagram, the annotations point to a listener on `0.0.0.0:20200` on the Envoy sidecar.
+
+When metrics alone are enabled, the listener in the diagram on `0.0.0.0:20200` would point directly at the sidecar metrics endpoint, rather than the merged metrics endpoint.
+
+When metrics and metrics merging are *both* enabled, metrics are combined from the service and the sidecar proxy, and exposed at a local server on the consul sidecar for scraping. This endpoint is called the merged metrics server and defaults to `127.0.0.1:20100/stats/prometheus` and can be configured with `defaultMergedMetricsPort` (or overridden on a per-Pod basis using `consul.hashicorp.com/merged-metrics-port`). The listener will point to this merged metrics endpoint in this case.
+
+These metrics are exposed to Prometheus for scraping on the Envoy sidecar by default at `0.0.0.0:20200/metrics`, and can be configured with `defaultPrometheusScrapePort` and `defaultPrometheusScrapePath`.
+
+Where to scrape service metrics from can be configured on a per-Pod basis by the Pod annotations `consul.hashicorp.com/service-metrics-port` and `consul.hashicorp.com/service-metrics-path`. If these are not configured, service metrics port will default to the port used to register the service with Consul (`consul.hashicorp.com/connect-service-port`), which defaults to the first port on the first container of the Pod. The service metrics path will default to `/metrics`.
+
 ## Metrics in the UI Topology Visualization
 
 ## Consul Agent Metrics
